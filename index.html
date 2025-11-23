@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMASI MCO</title>
+  
+  <!-- LIEN PWA MANIFEST (Obligatoire) -->
+  <link rel="manifest" href="manifest.json">
+  <!-- Couleur de la barre de statut mobile -->
+  <meta name="theme-color" content="#0b1220">
+  
+  <!-- ICÔNES MISES À JOUR -->
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
+
+  <style>
+    :root { --bg: #0b1220; --panel: #0f172a; --ink: #e5e7eb; --muted: #94a3b8; --brand: #38bdf8; --ok: #22c55e; --danger: #f43f5e; --warn: #f59e0b; --card: #1e293b; --border: #334155; --shadow: 0 10px 30px rgba(0,0,0,.25); --link-icon-size: 20px; --link-font-size: 14px; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--ink); transition: background-color 0.3s ease; min-height: 100vh; }
+    .topbar { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.8); }
+    .side, .modal .box { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.85); }
+    
+    /* Drag & Drop */
+    .dragging { opacity: 0.4; transform: scale(0.95); pointer-events: none; }
+    .cat-dropzone { box-shadow: 0 0 0 2px var(--brand); }
+    .drop-placeholder { width: 60px; height: 60px; background-color: rgba(56, 189, 248, 0.1); border: 2px dashed var(--brand); border-radius: 12px; margin: 4px; flex-shrink: 0; display: inline-block; }
+    .category:not([data-type="links"]) .drop-placeholder { width: 100%; height: 40px; border-radius: 9999px; }
+    .external-drag-over { border: 2px dashed var(--ok) !important; background-color: rgba(34, 197, 94, 0.1); }
+
+    /* Transitions */
+    .side, .overlay, .modal { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .side { transform: translateX(100%); } .side.open { transform: translateX(0); }
+    .overlay { opacity: 0; pointer-events: none; } .overlay.open { opacity: 1; pointer-events: auto; }
+    .modal { opacity: 0; pointer-events: none; transform: scale(0.95); } .modal.open { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+    /* Utils UI */
+    body.editing .hide-when-edit { display: none !important; } body:not(.editing) .show-when-edit { display: none !important; }
+    ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    .link-img { border-radius: 6px; object-fit: contain; display: block; flex-shrink: 0; }
+    .link-btn[data-display-mode="image-only"] .link-img { width: 100%; height: 100%; border-radius: 0; }
+    .link-btn:not([data-display-mode="image-only"]) .link-img { width: var(--link-icon-size, 20px); height: var(--link-icon-size, 20px); }
+    .link-btn:not([data-display-mode="image-only"]) span { font-size: var(--link-font-size, 14px); }
+
+    .category { position: absolute; transition: top 0.3s, left 0.3s, width 0.3s, background-color 0.3s, border-color 0.3s, box-shadow 0.3s; }
+    .resize-handle { position: absolute; bottom: 4px; right: 4px; width: 20px; height: 20px; cursor: nwse-resize; z-index: 10; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="20" y1="4" x2="4" y2="20"></line><line x1="12" y1="4" x2="4" y2="12"></line><line x1="20" y1="12" x2="12" y2="20"></line></svg>'); background-repeat: no-repeat; background-position: center; opacity: 0.7; transition: opacity 0.2s; } .resize-handle:hover { opacity: 1; }
+
+    .marquee-container { overflow: hidden; white-space: nowrap; }
+    .marquee-text { display: inline-block; white-space: nowrap; animation: scroll-left 30s linear infinite; font-size: 14px; }
+    @keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    #tooltip { position: fixed; background-color: #1e293b; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; pointer-events: none; z-index: 200; opacity: 0; transform: translateY(5px); transition: opacity 0.2s, transform 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,.3); }
+    #tooltip.visible { opacity: 1; transform: translateY(0); }
+
+    /* Shepherd */
+    .shepherd-element { background: #f1f5f9; border: 1px solid #cbd5e1; box-shadow: 0 10px 30px rgba(0,0,0,.2); max-width: 350px; border-radius: 12px; }
+    .shepherd-header { padding: 1rem 1rem 0.5rem; background-color: transparent; }
+    .shepherd-title { color: #1e293b !important; font-weight: 900 !important; font-size: 1.1rem; }
+    .shepherd-text { color: #334155 !important; padding: 0 1rem 1rem; font-size: 0.9rem; }
+    .shepherd-button { background: #38bdf8; color: #020617; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+    .shepherd-button:not(.shepherd-button-secondary):hover { background: #7dd3fc; }
+    .shepherd-button.shepherd-button-secondary { background: #e2e8f0; color: #334155; }
+    .shepherd-arrow::before { background-color: #f1f5f9; }
+
+    /* CSS Natif */
+    .input-base { background-color: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; transition: all 0.2s; width: 100%; }
+    .input-base:focus { outline: none; ring: 2px; ring-color: var(--brand); border-color: transparent; }
+    .btn-base { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; outline: none; cursor: pointer; }
+    .btn-icon-base { width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; outline: none; cursor: pointer; }
+    .btn-primary { background-color: #0284c7; color: white; } .btn-primary:hover { background-color: #0ea5e9; }
+    .btn-danger { background-color: #dc2626; color: white; } .btn-danger:hover { background-color: #ef4444; }
+    .btn-subtle { color: #38bdf8; font-size: 0.875rem; } .btn-subtle:hover { color: #7dd3fc; }
+    .btn-neutral { background-color: #334155; color: white; } .btn-neutral:hover { background-color: #475569; }
+
+    .notes-area { font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; }
+    .todo-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--border); transition: opacity 0.3s; }
+    .todo-item:last-child { border-bottom: none; } .todo-item.completed { opacity: 0.5; } .todo-item.completed .todo-text { text-decoration: line-through; }
+    .todo-priority-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .todo-priority-dot[data-priority="high"] { background-color: var(--danger); } .todo-priority-dot[data-priority="medium"] { background-color: var(--warn); } .todo-priority-dot[data-priority="low"] { background-color: var(--ok); }
+    .todo-text { flex-grow: 1; font-size: 14px; }
+    .todo-priority-select { background-color: var(--panel); border: 1px solid var(--border); border-radius: 6px; color: var(--ink); font-size: 12px; padding: 2px 24px 2px 8px; -webkit-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'); background-repeat: no-repeat; background-position: right 0.25rem center; background-size: 1em; }
+    
+    #contextMenu button { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.5rem 1rem; font-size: 14px; text-align: left; color: var(--ink); background-color: transparent; transition: background-color 0.2s; }
+    #contextMenu button:hover { background-color: var(--brand); color: white; } #contextMenu button.delete:hover { background-color: var(--danger); } #contextMenu hr { border-color: var(--border); margin: 0.25rem 0; }
+
+    /* Themes */
+    body.theme-papercut .todo-priority-select { background-color: #f3f4f6; border-color: var(--border); color: var(--ink); background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'); } body.theme-papercut .todo-priority-select option { background: #ffffff; color: var(--ink); }
+    body.theme-aeroglass { --panel: rgba(15, 23, 42, 0.6); --card: rgba(30, 41, 59, 0.5); --ink: #f8fafc; --muted: #cbd5e1; --brand: #22d3ee; --border: rgba(255, 255, 255, 0.15); --shadow: 0 10px 40px rgba(0,0,0,.3); }
+    body.theme-aeroglass .topbar, body.theme-aeroglass .side, body.theme-aeroglass .modal .box, body.theme-aeroglass .category { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-width: 1px; box-shadow: 0 0 0 1px var(--border), var(--shadow); background-color: var(--card); border-radius: 16px; }
+    body.theme-aeroglass .link-btn { background-color: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); } body.theme-aeroglass .link-btn:hover { background-color: rgba(34, 211, 238, 0.2); border-color: var(--brand); }
+    body.theme-industrial { --bg: #111827; --panel: #1f2937; --card: #1f2937; --ink: #e5e7eb; --muted: #9ca3af; --brand: #f59e0b; --border: #4b5563; --shadow: 5px 5px 0px rgba(0,0,0,.4); font-family: 'IBM Plex Mono', monospace; background-image: linear-gradient(rgba(17, 24, 39, 0.95), rgba(17, 24, 39, 0.95)), linear-gradient(to right, #374151 1px, transparent 1px), linear-gradient(to bottom, #374151 1px, transparent 1px); background-size: 100%, 40px 40px, 40px 40px; }
+    body.theme-industrial .notes-area, body.theme-industrial .todo-text { font-family: 'IBM Plex Mono', monospace; } body.theme-industrial .topbar, body.theme-industrial .side, body.theme-industrial .modal .box, body.theme-industrial .category, body.theme-industrial .link-btn, body.theme-industrial #appLogo, .shepherd-element { border-radius: 0; }
+    body.theme-industrial .category { border-width: 2px; box-shadow: var(--shadow); transition: all 0.2s; } body.theme-industrial .category:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0px rgba(0,0,0,.4); } body.theme-industrial .link-btn { border-radius: 2px; border-width: 1px; border-style: dashed; } body.theme-industrial .link-btn:hover { border-style: solid; border-color: var(--brand); color: var(--brand); }
+
+    /* N°14 - NEW THEME: Glassmorphism Advanced */
+    body.theme-glass-advanced {
+        --bg: #0f172a; --panel: rgba(255,255,255,0.05); --ink: #f8fafc;
+        background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+        background-attachment: fixed;
+    }
+    body.theme-glass-advanced .category,
+    body.theme-glass-advanced .topbar,
+    body.theme-glass-advanced .side,
+    body.theme-glass-advanced .modal .box {
+        background: rgba(255, 255, 255, 0.07);
+        backdrop-filter: blur(25px) saturate(180%);
+        -webkit-backdrop-filter: blur(25px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        border-radius: 20px;
+    }
+    body.theme-glass-advanced .category:hover {
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 15px 45px 0 rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div id="editModeBanner" class="hidden bg-yellow-400 text-black text-center py-2 font-bold text-sm flex items-center justify-center gap-4"><span>Vous êtes en mode édition.</span><button id="btnQuitEditBanner" class="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-semibold transition">Quitter</button></div>
+
+  <div class="topbar border-b border-slate-800 p-3 flex items-center gap-4 sticky top-0 z-50">
+    <div class="brand flex items-center gap-3 shrink-0">
+      <div id="appLogo" class="logo w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-400 flex items-center justify-center shadow-lg"><i data-lucide="blocks" class="text-white"></i></div>
+      <div id="appTitle" class="title font-bold text-lg hidden sm:block">EMASI MCO</div>
+    </div>
+    <div class="marquee-container flex-grow min-w-0 mx-4 hidden md:flex items-center"><p id="marquee-text" class="marquee-text font-medium text-slate-400"></p></div>
+    <div class="search-container w-full max-w-lg"><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500"></i><input type="search" id="searchInput" placeholder="Rechercher un lien..." class="w-full bg-slate-900 border border-slate-700 rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-sky-500 focus:outline-none transition"></div></div>
+    <div class="toolbar flex items-center gap-2">
+       <div id="datetime-widget" class="datetime-widget text-sm hidden lg:block text-right mr-2"></div>
+       <button id="btnUndo" data-tooltip="Annuler (Ctrl+Z)" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white hidden"><i data-lucide="undo-2" class="w-5 h-5"></i></button>
+       <button id="btnRedo" data-tooltip="Refaire (Ctrl+Y)" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white hidden"><i data-lucide="redo-2" class="w-5 h-5"></i></button>
+       <button id="btnAdmin" data-tooltip="Panneau Administrateur" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white"><i data-lucide="shield" class="w-5 h-5"></i></button>
+       <button id="btnToggleEdit" data-tooltip="Passer en mode édition" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white"><i data-lucide="edit" class="w-5 h-5"></i></button>
+       <button id="btnHelp" data-tooltip="Aide" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white"><i data-lucide="help-circle" class="w-5 h-5"></i></button>
+       <button id="btnFullscreen" data-tooltip="Plein écran" class="btn-icon-base bg-slate-800 hover:bg-slate-700 text-white hidden md:flex"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+    </div>
+  </div>
+
+  <main class="p-2 sm:p-4"><div id="catsGrid" class="relative"></div></main>
+
+  <button id="btnAddCategory" data-tooltip="Ajouter une carte" class="show-when-edit fixed bottom-8 right-8 btn-icon-base w-14 h-14 bg-sky-600 hover:bg-sky-500 text-white rounded-full shadow-lg z-50 flex items-center justify-center transition-transform hover:scale-110"><i data-lucide="plus" class="w-8 h-8"></i></button>
+
+  <div id="overlay" class="overlay fixed inset-0 bg-black/60 z-[60]"></div>
+  <aside id="side" class="side fixed top-0 right-0 h-full w-full max-w-md bg-slate-900/80 border-l border-slate-800 z-[70] flex flex-col">
+    <header class="flex items-center justify-between p-4 border-b border-slate-800 shrink-0"><strong class="text-lg font-semibold flex items-center gap-2"><i data-lucide="settings-2"></i> Paramètres</strong><div class="flex items-center gap-2"><button id="btnQuitEdit" class="btn-base btn-neutral">Quitter</button><button id="btnCloseSide" class="btn-icon-base bg-red-600 hover:bg-red-500 text-white"><i data-lucide="x"></i></button></div></header>
+    <div class="border-b border-slate-800 px-2"><nav class="flex -mb-px" aria-label="Tabs"><button role="tab" aria-controls="tab-appearance" aria-selected="true" class="tab-btn flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 border-transparent text-sm font-medium"><i data-lucide="paintbrush-2"></i> Apparence</button><button role="tab" aria-controls="tab-data" aria-selected="false" class="tab-btn flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 border-transparent text-sm font-medium"><i data-lucide="database"></i> Données</button></nav></div>
+    <div class="content p-4 overflow-y-auto">
+      <div id="tab-appearance" role="tabpanel">
+        <div class="space-y-4">
+          <!-- BOUTON INSTALLATION PWA -->
+          <div id="installContainer" class="hidden mb-6 p-4 bg-sky-500/10 border border-sky-500/50 rounded-xl">
+             <h4 class="font-bold text-sky-400 mb-2 flex items-center gap-2"><i data-lucide="download"></i> Installer l'app</h4>
+             <p class="text-sm text-slate-300 mb-3">Installez cette application sur votre appareil pour un accès hors-ligne et rapide.</p>
+             <button id="btnInstallApp" class="btn-base bg-sky-600 hover:bg-sky-500 text-white w-full">Installer maintenant</button>
+          </div>
+
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Titre</label><input type="text" id="appTitleInput" class="input-base"></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Thème</label>
+            <select id="themeSelector" class="input-base">
+                <option value="default">Défaut</option>
+                <option value="theme-glass-advanced">Glassmorphism Ultra (Nouveau)</option>
+                <option value="theme-aeroglass">AeroGlass</option>
+                <option value="theme-industrial">Grille Industrielle</option>
+            </select>
+          </div>
+          <hr class="border-slate-700 !my-6">
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Icône</label><input type="file" id="logoImageFile" accept="image/*" class="input-file text-sm text-slate-400"><button id="btnClearLogoImg" class="btn-subtle mt-2">Retirer</button></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Couleur fond</label><input type="color" id="bgColor" class="input-base h-10 p-1"></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Image fond</label><input type="file" id="bgImageFile" accept="image/*" class="input-file text-sm text-slate-400"><button id="btnClearBgImg" class="btn-subtle mt-2">Retirer</button></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Ouverture liens</label><select id="linkOpenBehaviorSelect" class="input-base"><option value="tab">Nouvel onglet</option><option value="window">Nouvelle fenêtre</option></select></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Taille icônes</label><div class="flex items-center gap-3"><input type="range" id="iconSize" min="12" max="150" step="1" class="w-full"><span id="iconSizeValue" class="text-sm text-slate-400 w-12 text-right">20px</span></div></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Taille texte</label><div class="flex items-center gap-3"><input type="range" id="linkFontSize" min="10" max="50" step="1" class="w-full"><span id="linkFontSizeValue" class="text-sm text-slate-400 w-12 text-right">14px</span></div></div>
+          <hr class="border-slate-700 !my-6">
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Taille carrés</label><div class="flex items-center gap-3"><input type="range" id="linkImageSizeSquare" min="32" max="256" step="4" class="w-full"><span id="linkImageSizeSquareValue" class="text-sm text-slate-400 w-12 text-right">64px</span></div></div>
+          <div class="field"><label class="text-sm font-medium text-slate-300 mb-1 block">Taille rectangles</label><div class="flex items-center gap-3"><input type="range" id="linkImageSizeRect" min="32" max="256" step="4" class="w-full"><span id="linkImageSizeRectValue" class="text-sm text-slate-400 w-12 text-right">128px</span></div></div>
+        </div>
+      </div>
+      <div id="tab-data" role="tabpanel" class="hidden">
+         <div class="space-y-6">
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btnExport" class="btn-base btn-neutral"><i data-lucide="download"></i> Exporter Tout</button>
+                <button id="btnImport" class="btn-base bg-amber-600 hover:bg-amber-500 text-white"><i data-lucide="upload"></i> Importer Tout</button>
+                <button id="btnExportLinks" class="btn-base btn-neutral"><i data-lucide="share"></i> Exp. Liens</button>
+                <button id="btnImportLinks" class="btn-base bg-cyan-600 hover:bg-cyan-500 text-white"><i data-lucide="file-plus-2"></i> Imp. Liens</button>
+                <button id="btnMassImport" class="btn-base btn-neutral col-span-2"><i data-lucide="list-plus"></i> Ajout en masse</button>
+            </div>
+            <div class="grid grid-cols-1 gap-3"><button id="btnImportAdmin" class="btn-base bg-teal-600 hover:bg-teal-500 text-white"><i data-lucide="shield-check"></i> Imp. Config Admin</button></div>
+            <div class="border border-red-500/50 bg-red-500/10 rounded-lg p-4 space-y-2">
+                <button id="btnResetApp" class="btn-base btn-danger w-full"><i data-lucide="trash-2"></i> Réinitialiser l'app</button>
+            </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="modalContainer"></div>
+  <input type="file" id="importFile" accept=".json" class="hidden" />
+  <input type="file" id="importLinksFile" accept=".json" class="hidden" />
+  <input type="file" id="importAdminFile" accept=".json" class="hidden" />
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] space-y-3 w-80"></div>
+  <div id="tooltip" role="tooltip"></div>
+  <div id="contextMenu" class="hidden fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-[110]"></div>
+
+  <script>
+    // --- PWA INSTALL LOGIC ---
+    let deferredPrompt;
+    const installContainer = document.getElementById('installContainer');
+    const btnInstall = document.getElementById('btnInstallApp');
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('SW registered:', reg))
+          .catch(err => console.log('SW failed:', err));
+      });
+    }
+
+    // Handle Install Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installContainer.classList.remove('hidden');
+    });
+
+    btnInstall.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installContainer.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
+
+    // Handle already installed
+    window.addEventListener('appinstalled', () => {
+      installContainer.classList.add('hidden');
+      console.log('PWA was installed');
+    });
+
+    // --- CONFIG CONSTANTS ---
+    const DB_NAME = 'EMASI_MCO_DB', DB_VERSION = 1, STORE_NAME = 'appData', MASK_KEY = 'EMASI_MCO_KEY', EMERGENCY_PASSWORD = 'RTElien@ppli!';
+    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+    
+    // --- HELPERS ---
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+    const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const escapeHtml = (s) => { const d=document.createElement('div'); d.innerText=s||''; return d.innerHTML; };
+    // CORRECTIF N°4: Détection stricte des Deep Links pour éviter le conflit avec C:\
+    const isWebUrl = (u) => u && /^https?:\/\//i.test(u);
+    const isDeepLink = (u) => u && /^[a-z][a-z0-9+.-]+:/i.test(u) && !/^https?:/i.test(u) && !/^file:/i.test(u); // Exige un schéma d'au moins 2 lettres
+
+    // NOUVEAU: Fonction pour convertir l'image uploadée
+    const fileToBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
+    const guessFavicon = (u) => { try { if (!isWebUrl(u)) return BLANK_IMG; return `https://www.google.com/s2/favicons?domain=${new URL(u).hostname}&sz=32`; } catch { return ''; } };
+    function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1)); return Math.ceil((((d - yearStart) / 86400000) + 1)/7); }
+
+    // --- INDEXED DB ---
+    let db;
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            if (db) return resolve(db);
+            const r = indexedDB.open(DB_NAME, DB_VERSION);
+            r.onerror = () => reject(r.error);
+            r.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            r.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id' }); };
+        });
+    }
+    function getData(key) { return openDB().then(db => new Promise((res, rej) => { const r = db.transaction([STORE_NAME],'readonly').objectStore(STORE_NAME).get(key); r.onerror=()=>rej(r.error); r.onsuccess=()=>res(r.result?.value); })); }
+    function setData(key, value) { return openDB().then(db => new Promise((res, rej) => { const r = db.transaction([STORE_NAME],'readwrite').objectStore(STORE_NAME).put({id:key, value:value}); r.onerror=()=>rej(r.error); r.onsuccess=()=>res(r.result); })); }
+    function deleteData(key) { return openDB().then(db => new Promise((res, rej) => { const r = db.transaction([STORE_NAME],'readwrite').objectStore(STORE_NAME).delete(key); r.onerror=()=>rej(r.error); r.onsuccess=()=>res(); })); }
+
+    // --- OBFUSCATION ---
+    function maskData(text) { if(!text) return text; try { let r=''; for(let i=0; i<text.length; i++) r+=String.fromCharCode(text.charCodeAt(i)^MASK_KEY.charCodeAt(i%MASK_KEY.length)); return btoa(encodeURIComponent(r)); } catch { return text; } }
+    function unmaskData(enc) { if(!enc) return enc; try { const t=decodeURIComponent(atob(enc)); let r=''; for(let i=0; i<t.length; i++) r+=String.fromCharCode(t.charCodeAt(i)^MASK_KEY.charCodeAt(i%MASK_KEY.length)); return r; } catch { return enc; } }
+
+    // --- STATE ---
+    let state, editing = false, dragCtx = null, refreshIntervalId = null, historyStack = [], redoStack = [];
+    const MAX_HISTORY_SIZE = 30;
+
+    function getDefaultState() {
+      return {
+        settings: {
+            appTitle: 'EMASI MCO', theme: 'default', logoImage: null, bgColor: '#0b1220', bgImage: null, 
+            iconSize: 20, linkFontSize: 14, linkImageSizeSquare: 64, linkImageSizeRect: 128, linkOpenBehavior: 'tab',
+            marquee: { url: '', interval: 5, fontFamily: 'Inter', fontSize: 14, color: '#94a3b8', speed: 30 },
+            github: { token: '', repoOwner: '', repoName: '', filePath: '', adminPassword: '' }
+        },
+        categories: [
+            { id: uid(), name: 'Favoris', type: 'links', links: [{ id: uid(), title: 'Google', url: 'https://www.google.com', icon: 'https://www.google.com/s2/favicons?sz=64&domain=google.com', tooltip: 'Recherche', displayMode: 'image-text', imageAspectRatio: 'default', openIn: 'default' }], width: 350, height: 250 },
+            { id: uid(), name: 'Bloc-notes', type: 'notes', content: 'Ceci est une carte bloc-notes.', width: 350, height: 250 },
+            { id: uid(), name: 'Tâches', type: 'todo', tasks: [{ id: uid(), text: 'Configurer', completed: true, priority: 'high', reminder: null }], width: 350, height: 350 },
+            { id: uid(), name: 'Info', type: 'message', content: "Message fixe.", width: 350, height: 250 }
+        ]
+      };
+    }
+
+    function mergeAndMigrateState(src) {
+        const d = getDefaultState();
+        if (!src) return d;
+        let s = JSON.parse(JSON.stringify(src));
+        s.settings = { ...d.settings, ...(s.settings || {}) };
+        s.settings.marquee = { ...d.settings.marquee, ...(s.settings.marquee || {}) };
+        s.settings.github = { ...d.settings.github, ...(s.settings.github || {}) };
+        if (s.settings.marqueeUrl) { s.settings.marquee = { url: s.settings.marqueeUrl, interval: s.settings.marqueeInterval, fontFamily: s.settings.marqueeFontFamily, fontSize: s.settings.marqueeFontSize, color: s.settings.marqueeColor, speed: s.settings.marqueeSpeed }; }
+        s.categories = (s.categories || []).length ? s.categories : d.categories;
+        s.categories.forEach(c => {
+            c.type = c.type || 'links';
+            if (c.type==='notes') c.content = c.content || '';
+            if (c.type==='todo') { c.tasks = c.tasks || []; c.tasks.forEach(t => { t.priority = t.priority || 'medium'; t.reminder = t.reminder || null; }); }
+            if (c.type==='widget-top') c.limit = c.limit || 5;
+            c.width = c.width || 350; c.height = c.height || 250;
+            if (c.links) c.links.forEach(l => { l.openIn = l.openIn || 'default'; l.displayMode = l.displayMode || 'image-text'; l.imageAspectRatio = l.imageAspectRatio || 'default'; l.tooltip = l.tooltip || ''; l.clickCount = l.clickCount || 0; });
+        });
+        return s;
+    }
+
+    async function loadState() { try { return mergeAndMigrateState(await getData('appState')); } catch { return getDefaultState(); } }
+    async function saveState(hist=true) { if(hist) { redoStack=[]; historyStack.push(JSON.parse(JSON.stringify(state))); if(historyStack.length>MAX_HISTORY_SIZE) historyStack.shift(); updateUndoRedo(); } await setData('appState', state); }
+    function updateUndoRedo() { $('#btnUndo')?.classList.toggle('hidden', !historyStack.length); $('#btnRedo')?.classList.toggle('hidden', !redoStack.length); }
+    async function handleUndo() { if(historyStack.length) { redoStack.push(JSON.parse(JSON.stringify(state))); state = historyStack.pop(); await saveState(false); render(); renderSideSettings(); showToast('Annulé', 'info'); updateUndoRedo(); } }
+    async function handleRedo() { if(redoStack.length) { historyStack.push(JSON.parse(JSON.stringify(state))); state = redoStack.pop(); await saveState(false); render(); renderSideSettings(); showToast('Rétabli', 'info'); updateUndoRedo(); } }
+
+    // --- UI ---
+    function applyTheme() {
+        const t = state.settings.theme || 'default';
+        document.body.className = 'antialiased ' + (t !== 'default' ? t : '');
+        if (editing) document.body.classList.add('editing');
+        document.body.style.backgroundColor = state.settings.bgColor || '';
+        document.body.style.backgroundImage = state.settings.bgImage ? `url('${state.settings.bgImage}')` : '';
+        document.body.style.backgroundSize = 'cover'; document.body.style.backgroundAttachment = 'fixed';
+        document.documentElement.style.setProperty('--link-icon-size', `${state.settings.iconSize||20}px`);
+        document.documentElement.style.setProperty('--link-font-size', `${state.settings.linkFontSize||14}px`);
+        $('#appTitle').textContent = document.title = state.settings.appTitle || 'EMASI MCO';
+        const logo = $('#appLogo');
+        if (state.settings.logoImage) { logo.innerHTML = `<img src="${state.settings.logoImage}" class="w-full h-full object-cover rounded-lg">`; logo.className = 'logo w-10 h-10 rounded-lg shadow-lg'; }
+        else { logo.innerHTML = `<i data-lucide="blocks" class="text-white"></i>`; logo.className = 'logo w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-400 flex items-center justify-center shadow-lg'; }
+        const mq = $('#marquee-text');
+        if(mq) { const s=state.settings.marquee; mq.style.fontFamily=s.fontFamily; mq.style.fontSize=`${s.fontSize}px`; mq.style.color=s.color; mq.style.animationDuration=`${s.speed}s`; }
+    }
+
+    function render() {
+        applyTheme();
+        const grid = $('#catsGrid');
+        grid.innerHTML = '';
+        if (!grid.offsetWidth) { setTimeout(render, 100); return; }
+
+        const w = grid.offsetWidth, gap = 16;
+        let cols = w>=1400?5:w>=1100?4:w>=900?3:w>=640?2:1;
+        const colW = (w - (gap*(cols-1))) / cols;
+        const colH = Array(cols).fill(0);
+
+        state.categories.forEach(cat => {
+            const el = createCatEl(cat);
+            const span = Math.max(1, Math.min(cols, Math.round((cat.width||colW)/colW)));
+            const finalW = (span*colW) + ((span-1)*gap);
+            
+            let best=0, min=Infinity;
+            for(let i=0; i<=cols-span; i++) { const m = Math.max(...colH.slice(i, i+span)); if(m<min) { min=m; best=i; } }
+            
+            el.style.top = `${min}px`; el.style.left = `${best*(colW+gap)}px`;
+            el.style.width = `${finalW}px`; el.style.height = `${cat.height||250}px`;
+            for(let i=best; i<best+span; i++) colH[i] = min + (cat.height||250) + gap;
+            grid.appendChild(el);
+        });
+        grid.style.height = `${Math.max(...colH)}px`;
+        state.categories.forEach(c => { if(c.type==='message') fetchAndDisplayCardMessage(c.id); });
+        $('#editModeBanner').classList.toggle('hidden', !editing);
+        
+        if (editing) {
+             $$('.category').forEach(el => { el.draggable=true; addDragListeners(el, 'category'); addDropZoneListeners(el, 'category'); initResize(el); });
+             $$('.link-btn').forEach(el => { el.draggable=true; addDragListeners(el, 'link'); el.oncontextmenu = e => { e.preventDefault(); openContextMenu(e, el.dataset.id, el.closest('.category').dataset.id); }; });
+             $$('.links').forEach(el => addDropZoneListeners(el, 'link'));
+        }
+        lucide.createIcons();
+    }
+
+    function createCatEl(cat) {
+        const el = document.createElement('section');
+        el.className = 'category bg-slate-800 border border-slate-700 rounded-2xl shadow-lg flex flex-col';
+        el.id = `cat-${cat.id}`; el.dataset.id = cat.id;
+        if (cat.type === 'links') el.dataset.type = 'links';
+        if (cat.bgColor) el.style.backgroundColor = cat.bgColor;
+        if (cat.bgImage) el.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('${cat.bgImage}')`;
+        if (cat.fontColor) el.style.color = cat.fontColor;
+
+        const btnIconCls = "btn-icon-base hover:bg-white/20";
+        
+        // Custom Icon for widget
+        const catIcon = cat.type === 'widget-top' ? (cat.icon || 'https://img.icons8.com/fluency/48/star.png') : cat.icon;
+
+        el.innerHTML = `
+            <div class="cat-head flex items-center gap-2 p-4 border-b border-white/10" style="cursor:${editing?'grab':'default'}">
+                ${catIcon ? `<img src="${catIcon}" class="w-6 h-6 rounded object-contain mr-3 shrink-0">` : ''}
+                <div class="cat-title font-bold text-lg flex-1" contentEditable="${editing}" spellcheck="false">${escapeHtml(cat.name)}</div>
+                <div class="cat-actions flex items-center gap-2 show-when-edit">
+                    <button class="${btnIconCls} !w-8 !h-8" data-action="cat-settings" data-id="${cat.id}" data-tooltip="Paramètres"><i data-lucide="settings-2" class="w-4 h-4"></i></button>
+                    ${cat.type==='links' ? `<button class="${btnIconCls} !w-8 !h-8" data-action="add-link" data-id="${cat.id}" data-tooltip="Ajouter lien"><i data-lucide="plus" class="w-4 h-4"></i></button>` : ''}
+                    <button class="${btnIconCls} !w-8 !h-8 text-red-400 hover:text-red-200" data-action="delete-cat" data-id="${cat.id}" data-tooltip="Supprimer"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+            <div class="cat-body flex-grow overflow-hidden h-full flex flex-col relative"></div>
+            <div class="resize-handle show-when-edit" data-tooltip="Redimensionner"></div>`;
+        
+        const body = el.querySelector('.cat-body');
+        
+        if (cat.type === 'notes') {
+            body.classList.add('p-1');
+            body.innerHTML = `<textarea class="notes-area w-full h-full bg-transparent text-inherit resize-none border-0 focus:outline-none p-2" spellcheck="false" data-cat-id="${cat.id}">${escapeHtml(cat.content||'')}</textarea>`;
+            body.querySelector('textarea').oninput = handleNoteInput;
+        } else if (cat.type === 'todo') {
+            const sorted = [...(cat.tasks||[])].sort((a,b) => ({high:1,medium:2,low:3}[a.priority] - {high:1,medium:2,low:3}[b.priority]));
+            body.innerHTML = `<div class="tasks-container overflow-y-auto p-3 flex-grow space-y-1">
+                ${sorted.map(t => `
+                <div class="todo-item ${t.completed?'completed':''}" data-task-id="${t.id}">
+                    <input type="checkbox" class="todo-checkbox bg-slate-700 rounded shrink-0" ${t.completed?'checked':''}>
+                    <span class="todo-priority-dot" data-priority="${t.priority}"></span>
+                    <span class="todo-text">${escapeHtml(t.text)}</span>
+                    <select class="todo-priority-select shrink-0"><option value="high" ${t.priority==='high'?'selected':''}>Haute</option><option value="medium" ${t.priority==='medium'?'selected':''}>Moyenne</option><option value="low" ${t.priority==='low'?'selected':''}>Basse</option></select>
+                    <button class="btn-icon-base !w-7 !h-7 ${t.reminder?'text-sky-400':'text-slate-500'} hover:bg-white/10 shrink-0" data-action="set-reminder" data-task-id="${t.id}" data-cat-id="${cat.id}"><i data-lucide="alarm-clock" class="w-4 h-4"></i></button>
+                </div>`).join('')}
+            </div>
+            <div class="p-3 border-t border-white/10 space-y-2">
+                <div class="relative flex items-center"><input type="text" class="new-task-input input-base text-sm w-full pr-10" placeholder="Nouvelle tâche..."><button class="add-task-btn absolute right-0 top-0 h-full px-3 text-muted hover:text-brand" data-tooltip="Ajouter"><i data-lucide="plus-circle" class="w-5 h-5"></i></button></div>
+                <button class="clear-completed-btn btn-subtle text-xs w-full justify-center">Vider terminées</button>
+            </div>`;
+        } else if (cat.type === 'message') {
+            body.classList.add('p-4', 'overflow-y-auto', 'text-sm', 'leading-relaxed');
+            body.innerHTML = `<div class="message-content text-slate-300">Chargement...</div>`;
+        } else if (cat.type === 'widget-top') {
+            // WIDGET TOP APPS LOGIC
+            body.className = 'links flex flex-wrap items-start gap-3 p-4 overflow-y-auto';
+            
+            // Collect all links, sort by clicks, slice by limit
+            const allLinks = state.categories
+                .filter(c => c.type === 'links')
+                .flatMap(c => c.links || [])
+                .sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0))
+                .slice(0, cat.limit || 5);
+
+            if (allLinks.length === 0) {
+                body.innerHTML = `<div class="text-slate-500 text-xs italic w-full text-center p-4">Utilisez vos liens pour les voir apparaître ici.</div>`;
+            } else {
+                allLinks.forEach(l => {
+                    const a = document.createElement('a');
+                    a.href = l.url||'#'; a.className = "link-btn transition-all duration-200 flex items-center";
+                    // Force display mode for widget consistency or use link's pref
+                    const dMode = l.displayMode || 'image-text';
+                    a.dataset.displayMode = dMode;
+                    // Info bulle pour widget (non modifiable ici, car lien virtuel)
+                    a.setAttribute('data-tooltip', `${escapeHtml(l.tooltip||l.title)} (${l.clickCount||0} clics)`);
+                    
+                    if (dMode === 'image-only') {
+                        a.classList.add('p-0','justify-center','rounded-lg','overflow-hidden','hover:scale-105','flex-shrink-0');
+                        const w = (l.imageAspectRatio==='16-9'||l.imageAspectRatio==='4-3') ? (state.settings.linkImageSizeRect||128) : (state.settings.linkImageSizeSquare||64);
+                        a.style.width = `${w}px`;
+                        a.classList.add(l.imageAspectRatio==='16-9'?'aspect-video':l.imageAspectRatio==='4-3'?'aspect-[4/3]':'aspect-square');
+                    } else {
+                        a.classList.add('gap-2','bg-slate-900/50','border','border-slate-700/50','hover:border-sky-500','hover:-translate-y-0.5','px-3','py-2','rounded-full');
+                    }
+                    
+                    a.onclick = async e => {
+                        if(editing) { e.preventDefault(); return; }
+                        e.preventDefault();
+                        // Increment click count
+                        l.clickCount = (l.clickCount || 0) + 1;
+                        await saveState(false); // Save silently
+                        render(); // Re-render to update top list immediately
+
+                        // Modif N°4: Click Handler pour Widget
+                        if(isWebUrl(l.url)) {
+                            const b = (l.openIn==='default'?state.settings.linkOpenBehavior:l.openIn)||'tab';
+                            window.open(l.url, '_blank', b==='window'?'noopener,noreferrer,width=1200,height=800':'noopener,noreferrer');
+                        } else if (isDeepLink(l.url)) {
+                            window.location.href = l.url; // Lance l'app
+                        } else {
+                            navigator.clipboard.writeText(l.url).then(()=>showToast('Copié !'), ()=>showToast('Erreur copie','danger'));
+                        }
+                    };
+
+                    let html = '';
+                    if (dMode !== 'text-only') html += `<img src="${l.icon||guessFavicon(l.url)}" class="link-img" onerror="this.src='${guessFavicon()}'">`;
+                    if (dMode !== 'image-only') html += `<span>${escapeHtml(l.title)}</span>`;
+                    a.innerHTML = html;
+                    body.appendChild(a);
+                });
+            }
+
+        } else { // Standard Link Category
+            body.className = 'links flex flex-wrap items-start gap-3 p-4 overflow-y-auto';
+            (cat.links||[]).forEach(l => {
+                const a = document.createElement('a');
+                a.href = l.url||'#'; a.className = "link-btn transition-all duration-200 flex items-center";
+                a.dataset.id = l.id; a.dataset.displayMode = l.displayMode||'image-text';
+                
+                // INFO-BULLE (Feature Demandée)
+                a.setAttribute('data-tooltip', escapeHtml(l.tooltip||l.title));
+                
+                if (l.displayMode === 'image-only') {
+                    a.classList.add('p-0','justify-center','rounded-lg','overflow-hidden','hover:scale-105','flex-shrink-0');
+                    const w = (l.imageAspectRatio==='16-9'||l.imageAspectRatio==='4-3') ? (state.settings.linkImageSizeRect||128) : (state.settings.linkImageSizeSquare||64);
+                    a.style.width = `${w}px`;
+                    a.classList.add(l.imageAspectRatio==='16-9'?'aspect-video':l.imageAspectRatio==='4-3'?'aspect-[4/3]':'aspect-square');
+                } else {
+                    a.classList.add('gap-2','bg-slate-900/50','border','border-slate-700/50','hover:border-sky-500','hover:-translate-y-0.5','px-3','py-2','rounded-full');
+                }
+                a.onclick = async e => {
+                    if(editing) { e.preventDefault(); return; }
+                    e.preventDefault();
+                    
+                    // Increment click count
+                    l.clickCount = (l.clickCount || 0) + 1;
+                    await saveState(false);
+
+                    // Modif N°4: Click Handler Principal
+                    if(isWebUrl(l.url)) {
+                        const b = (l.openIn==='default'?state.settings.linkOpenBehavior:l.openIn)||'tab';
+                        window.open(l.url, '_blank', b==='window'?'noopener,noreferrer,width=1200,height=800':'noopener,noreferrer');
+                    } else if (isDeepLink(l.url)) {
+                        window.location.href = l.url; // Lance l'app
+                    } else {
+                        navigator.clipboard.writeText(l.url).then(()=>showToast('Copié !'), ()=>showToast('Erreur copie','danger'));
+                    }
+                };
+                let html = '';
+                if (l.displayMode !== 'text-only') html += `<img src="${l.icon||guessFavicon(l.url)}" class="link-img" onerror="this.src='${guessFavicon()}'">`;
+                if (l.displayMode !== 'image-only') html += `<span>${escapeHtml(l.title)}</span>`;
+                a.innerHTML = html;
+                body.appendChild(a);
+            });
+        }
+        return el;
+    }
+    
+    // --- ACTION HANDLERS ---
+    function handleNoteInput(e) {
+        const c = state.categories.find(x=>x.id===e.target.dataset.catId);
+        if(c) { c.content = e.target.value; clearTimeout(window.st); window.st = setTimeout(saveState, 500); }
+    }
+
+    // Global Event Delegation
+    $('#catsGrid').addEventListener('click', async (e) => {
+        const actionBtn = e.target.closest('[data-action]');
+        if (actionBtn) {
+            const action = actionBtn.dataset.action;
+            const id = actionBtn.dataset.id;
+            e.stopPropagation();
+            if (action==='add-link') openLinkModal({catId:id});
+            if (action==='cat-settings') openCatSettingsModal(id);
+            if (action==='delete-cat') { if(await showConfirm('Supprimer ?', 'Action irréversible.')) { state.categories=state.categories.filter(c=>c.id!==id); await saveState(); render(); } }
+            if (action==='set-reminder') openReminderModal(actionBtn.dataset.catId, actionBtn.dataset.taskId);
+        }
+
+        const catEl = e.target.closest('.category');
+        if (!catEl) return;
+        const cat = state.categories.find(c => c.id === catEl.dataset.id);
+        if (!cat || cat.type !== 'todo') return;
+
+        if (e.target.closest('.add-task-btn') || (e.target.classList.contains('new-task-input') && e.key === 'Enter')) { /* Logic in keyup listener */ } 
+        if (e.target.closest('.clear-completed-btn')) { cat.tasks = cat.tasks.filter(t => !t.completed); await saveState(); render(); }
+    });
+
+    $('#catsGrid').addEventListener('change', async (e) => {
+        const catEl = e.target.closest('.category');
+        if (!catEl) return;
+        const cat = state.categories.find(c => c.id === catEl.dataset.id);
+        if (e.target.classList.contains('todo-checkbox')) { cat.tasks.find(t=>t.id===e.target.closest('.todo-item').dataset.taskId).completed = e.target.checked; await saveState(); render(); }
+        if (e.target.classList.contains('todo-priority-select')) { cat.tasks.find(t=>t.id===e.target.closest('.todo-item').dataset.taskId).priority = e.target.value; await saveState(); render(); }
+    });
+    
+    $('#catsGrid').addEventListener('keyup', async (e) => {
+        if (e.key === 'Enter' && e.target.classList.contains('new-task-input')) {
+             const cat = state.categories.find(c => c.id === e.target.closest('.category').dataset.id);
+             const txt = e.target.value.trim();
+             if(txt) { cat.tasks.push({id:uid(), text:txt, completed:false, priority:'medium'}); await saveState(); render(); setTimeout(()=>document.getElementById(`cat-${cat.id}`)?.querySelector('.new-task-input')?.focus(),0); }
+        }
+    });
+    $('#catsGrid').addEventListener('focusout', async (e) => {
+        if (e.target.classList.contains('cat-title')) {
+            const cat = state.categories.find(c => c.id === e.target.closest('.category').dataset.id);
+            if(cat && e.target.textContent.trim() !== cat.name) { cat.name = e.target.textContent.trim(); await saveState(); }
+        }
+    });
+
+    // --- MODALS & DIALOGS ---
+    const modalContainer = $('#modalContainer');
+    const overlay = $('#overlay');
+    function openModal(id, html, width='max-w-lg') {
+        modalContainer.innerHTML = `<div id="${id}" class="modal fixed inset-0 flex items-center justify-center z-[80]"><div class="box bg-slate-900/80 border border-slate-700 rounded-2xl shadow-2xl p-6 w-full ${width} max-h-[90vh] flex flex-col">${html}</div></div>`;
+        setTimeout(() => { $(`#${id}`).classList.add('open'); overlay.classList.add('open'); }, 10);
+        lucide.createIcons();
+    }
+    function closeModal() {
+        const m = modalContainer.firstElementChild; if(!m) return;
+        m.classList.remove('open'); if(!$('#side').classList.contains('open')) overlay.classList.remove('open');
+        setTimeout(()=>modalContainer.innerHTML='', 300);
+    }
+    function showToast(msg, type='ok') {
+        const c = {ok:'bg-green-600',danger:'bg-red-600',warn:'bg-yellow-500',info:'bg-sky-500'};
+        const div = document.createElement('div'); div.className = `flex items-center gap-3 text-white ${c[type]} px-4 py-3 rounded-lg shadow-lg translate-x-full opacity-0 transition-all duration-300`;
+        div.innerHTML = `<span>${msg}</span>`; $('#toastContainer').appendChild(div);
+        setTimeout(()=>div.classList.remove('translate-x-full','opacity-0'),10);
+        setTimeout(()=>{div.classList.add('opacity-0');setTimeout(()=>div.remove(),300)},3000);
+    }
+    function showConfirm(title, msg, btnTxt='Confirmer') {
+        return new Promise(res => {
+            openModal('confirm', `<h3 class="text-xl font-bold mb-2">${title}</h3><p class="text-slate-400 mb-6">${msg}</p><div class="flex justify-end gap-3"><button id="c-no" class="btn-base btn-neutral">Annuler</button><button id="c-yes" class="btn-base btn-danger">${btnTxt}</button></div>`,'max-w-md');
+            $('#c-yes').onclick=()=>{closeModal();res(true)}; $('#c-no').onclick=()=>{closeModal();res(false)};
+        });
+    }
+
+    // --- DRAG & DROP (CORRECTIF MAJEUR) ---
+    function initResize(el) {
+        el.querySelector('.resize-handle')?.addEventListener('mousedown', e => {
+            e.stopPropagation(); const sX=e.clientX, sY=e.clientY, sW=el.offsetWidth, sH=el.offsetHeight, cat=state.categories.find(c=>c.id===el.dataset.id);
+            const mv=(ev)=>{ el.style.width=`${Math.max(200,sW+ev.clientX-sX)}px`; el.style.height=`${Math.max(150,sH+ev.clientY-sY)}px`; };
+            const up=async()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); cat.width=el.offsetWidth; cat.height=el.offsetHeight; await saveState(false); render(); };
+            document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+        });
+    }
+    
+    function addDragListeners(el, type) {
+        el.ondragstart = e => {
+            if(e.target.classList.contains('resize-handle')) return e.preventDefault();
+            e.stopPropagation();
+            dragCtx = { type, id: el.dataset.id, catId: el.closest('.category')?.dataset.id };
+            setTimeout(()=>el.classList.add('dragging'), 0);
+        };
+        el.ondragend = e => {
+            el.classList.remove('dragging');
+            $$('.cat-dropzone').forEach(x=>x.classList.remove('cat-dropzone'));
+            $$('.drop-placeholder').forEach(x=>x.remove());
+            $$('.external-drag-over').forEach(x=>x.classList.remove('external-drag-over'));
+            dragCtx = null;
+        };
+    }
+
+    function addDropZoneListeners(el, type) {
+        el.ondragover = e => {
+            e.preventDefault(); 
+            if(dragCtx?.type === type) {
+                if(type === 'link') {
+                    // Links can only be dropped on 'links' categories, not widgets
+                    if(el.closest('.category').dataset.type !== 'links') return;
+                    const p = el.querySelector('.drop-placeholder') || document.createElement('div');
+                    p.className = 'drop-placeholder';
+                    const after = getDragAfter(el, e.clientX, e.clientY);
+                    if(after) el.insertBefore(p, after); else el.appendChild(p);
+                } else {
+                    el.classList.add('cat-dropzone');
+                }
+            }
+            if(!dragCtx && type==='link' && e.dataTransfer.types.includes('text/uri-list') && el.closest('.category').dataset.type === 'links') {
+                 el.closest('.category').classList.add('external-drag-over');
+            }
+        };
+
+        el.ondragleave = e => {
+            if (el.contains(e.relatedTarget)) return;
+            el.classList.remove('cat-dropzone');
+            if(type === 'link') {
+                el.closest('.category')?.classList.remove('external-drag-over');
+                el.querySelector('.drop-placeholder')?.remove();
+            }
+        };
+
+        el.ondrop = async e => {
+            e.preventDefault(); e.stopPropagation();
+            el.classList.remove('cat-dropzone');
+            el.closest('.category')?.classList.remove('external-drag-over');
+            const ph = el.querySelector('.drop-placeholder');
+            
+            if(dragCtx?.type === type) {
+                if (type === 'category') {
+                    const fI = state.categories.findIndex(c => c.id === dragCtx.id);
+                    const tI = state.categories.findIndex(c => c.id === el.dataset.id);
+                    if(fI > -1 && tI > -1 && fI !== tI) {
+                        const [m] = state.categories.splice(fI, 1);
+                        state.categories.splice(tI, 0, m);
+                        await saveState(); render();
+                    }
+                } else if (type === 'link') {
+                    const tC = state.categories.find(c => c.id === el.closest('.category').dataset.id);
+                    if (tC.type !== 'links') return; // Protect widget
+                    
+                    const fC = state.categories.find(c => c.id === dragCtx.catId);
+                    let targetIndex = tC.links.length;
+                    if (ph && ph.parentNode === el) {
+                        targetIndex = Array.from(el.children).indexOf(ph);
+                        const draggingLinkIndex = tC.links.findIndex(l => l.id === dragCtx.id);
+                        if (fC === tC && draggingLinkIndex < targetIndex) targetIndex--; 
+                    }
+                    
+                    const lI = fC.links.findIndex(l => l.id === dragCtx.id);
+                    if (lI > -1) {
+                        const [mL] = fC.links.splice(lI, 1);
+                        tC.links.splice(targetIndex, 0, mL);
+                        await saveState(); render();
+                    }
+                }
+            } 
+            else if (!dragCtx && type === 'link') {
+                 const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+                 const catId = el.closest('.category').dataset.id;
+                 if(url && state.categories.find(c=>c.id===catId)?.type === 'links') openLinkModal({catId, prefillUrl: url});
+            }
+            if(ph) ph.remove(); dragCtx = null;
+        };
+    }
+
+    function getDragAfter(container, x, y) {
+        const draggableElements = [...container.querySelectorAll('.link-btn:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offsetX = x - box.left - box.width / 2; const offsetY = y - box.top - box.height / 2;
+            const dist = Math.hypot(offsetX, offsetY);
+            return (dist < closest.offset) ? { offset: dist, element: child } : closest;
+        }, { offset: Number.POSITIVE_INFINITY }).element;
+    }
+
+    // --- TOOLTIPS (Added Logic) ---
+    function initTooltips() {
+        const tooltipEl = $('#tooltip');
+        document.body.addEventListener('mouseover', e => {
+            const target = e.target.closest('[data-tooltip]');
+            if (!target) return;
+            tooltipEl.textContent = target.dataset.tooltip;
+            tooltipEl.classList.add('visible');
+            const targetRect = target.getBoundingClientRect();
+            const tooltipRect = tooltipEl.getBoundingClientRect();
+            let top = targetRect.bottom + 8;
+            let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) left = window.innerWidth - 10 - tooltipRect.width;
+            if (top + tooltipRect.height > window.innerHeight - 10) top = targetRect.top - tooltipRect.height - 8;
+
+            tooltipEl.style.top = `${top}px`;
+            tooltipEl.style.left = `${left}px`;
+        });
+
+        document.body.addEventListener('mouseout', e => {
+            const target = e.target.closest('[data-tooltip]');
+            if (target) tooltipEl.classList.remove('visible');
+        });
+    }
+
+    // --- LINK & CAT MODALS ---
+    async function fetchUrlMetadata(url) {
+        if(!isWebUrl(url)) return {};
+        const statusEl = $('#mUrlStatus'); if(statusEl) statusEl.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`; lucide.createIcons();
+        try {
+            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+            if(!res.ok) throw new Error();
+            const html = await res.text(); const doc = new DOMParser().parseFromString(html,'text/html');
+            const title = doc.querySelector('title')?.textContent.trim();
+            let icon = null;
+            const links = doc.querySelectorAll('link[rel*="icon"]');
+            for(const l of links) { if(l.href) { icon=new URL(l.href, url).href; break; } }
+            if(statusEl) statusEl.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`; lucide.createIcons();
+            return {title, icon};
+        } catch { if(statusEl) statusEl.innerHTML = ''; return {}; }
+    }
+
+    function openLinkModal({catId, linkId, prefillUrl, prefillTitle}) {
+        const cat = state.categories.find(c=>c.id===catId);
+        const link = linkId ? cat?.links.find(l=>l.id===linkId) : null;
+        // Modif: Added Info-Bulle input
+        openModal('linkModal', `
+            <h3 class="text-xl font-bold mb-4">${link?'Modifier':'Nouveau'} lien</h3>
+            <div class="space-y-4 overflow-y-auto pr-2">
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">URL ou Protocole (mailto:, msteams:)</label><div class="relative"><input id="mUrl" value="${escapeHtml(link?.url||prefillUrl||'')}" class="input-base" placeholder="https://..., mailto:user@mail.com, msteams:"><span id="mUrlStatus" class="absolute right-3 top-2.5 text-slate-400"></span></div></div>
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">Titre</label><input id="mTitle" value="${escapeHtml(link?.title||prefillTitle||'')}" class="input-base"></div>
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">Info-bulle (optionnel)</label><input id="mTooltip" value="${escapeHtml(link?.tooltip||'')}" class="input-base" placeholder="Texte au survol (par défaut: Titre)"></div>
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">Catégorie</label><select id="mCat" class="input-base">${state.categories.filter(c=>c.type==='links').map(c=>`<option value="${c.id}" ${c.id===catId?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div>
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">Affichage</label><select id="mDisp" class="input-base"><option value="image-text">Image + Texte</option><option value="image-only">Image seule</option><option value="text-only">Texte seul</option></select></div>
+                <div class="field hidden" id="mRatioBox"><label class="block text-sm text-slate-300 mb-1">Ratio Image</label><select id="mRatio" class="input-base"><option value="default">Carré</option><option value="16-9">16:9</option><option value="4-3">4:3</option></select></div>
+                <div class="field"><label class="block text-sm text-slate-300 mb-1">Icône</label><input id="mIcon" value="${link?.icon||''}" class="input-base"></div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6"><button onclick="closeModal()" class="btn-base btn-neutral">Annuler</button><button id="mSave" class="btn-base btn-primary">Enregistrer</button></div>
+        `);
+        const mDisp=$('#mDisp'); mDisp.value = link?.displayMode||'image-text'; mDisp.onchange=()=>{ $('#mRatioBox').classList.toggle('hidden', mDisp.value!=='image-only'); }; mDisp.onchange();
+        if(link) $('#mRatio').value = link.imageAspectRatio||'default';
+        
+        $('#mUrl').onblur = async () => {
+            const u=$('#mUrl').value.trim();
+            if(u && !$('#mTitle').value) { const m = await fetchUrlMetadata(u); if(m.title) $('#mTitle').value=m.title; if(m.icon) $('#mIcon').value=m.icon; }
+        };
+
+        $('#mSave').onclick = async () => {
+            const title=$('#mTitle').value, url=$('#mUrl').value, dMode=$('#mDisp').value;
+            if(!title || !url) return showToast('Champs manquants','warn');
+            // Save tooltip
+            const newLink = { 
+                id:linkId||uid(), title, url, icon:$('#mIcon').value, displayMode:dMode, 
+                imageAspectRatio:$('#mRatio').value, openIn:'default', clickCount: link?.clickCount || 0,
+                tooltip: $('#mTooltip').value.trim() 
+            };
+            if(linkId) { 
+                const oldCat = state.categories.find(c=>c.id===catId), newCat = state.categories.find(c=>c.id===$('#mCat').value);
+                oldCat.links = oldCat.links.filter(l=>l.id!==linkId); newCat.links.push(newLink);
+            } else { state.categories.find(c=>c.id===$('#mCat').value).links.push(newLink); }
+            await saveState(); render(); closeModal();
+        };
+    }
+
+    function openCatSettingsModal(id) {
+        const c = state.categories.find(x=>x.id===id);
+        
+        let extraFields = '';
+        // Special fields for Widget Top Apps
+        if (c.type === 'widget-top') {
+            extraFields = `
+            <hr class="border-slate-700 my-4">
+            <div><label class="block text-sm text-slate-300 mb-1">Nombre de liens à afficher</label><input type="number" id="climit" value="${c.limit||5}" min="1" max="20" class="input-base"></div>
+            `;
+        }
+
+        // N°16 - COULEURS POST-IT POUR NOTES
+        if (c.type === 'notes') {
+            extraFields += `
+            <hr class="border-slate-700 my-4">
+            <label class="block text-sm text-slate-300 mb-2">Couleurs Post-it</label>
+            <div class="flex gap-3 flex-wrap">
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#1e293b" data-bg="#1e293b" data-fg="#e5e7eb" title="Défaut"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#fef9c3" data-bg="#fef9c3" data-fg="#1e293b" title="Jaune"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#dcfce7" data-bg="#dcfce7" data-fg="#1e293b" title="Vert"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#ffe4e6" data-bg="#ffe4e6" data-fg="#1e293b" title="Rouge"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#e0f2fe" data-bg="#e0f2fe" data-fg="#1e293b" title="Bleu"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-full border border-slate-500 hover:scale-110 transition shadow-lg" style="background:#f3e8ff" data-bg="#f3e8ff" data-fg="#1e293b" title="Violet"></button>
+            </div>
+            `;
+        }
+
+        openModal('catSet', `
+            <h3 class="text-xl font-bold mb-4">Paramètres Carte</h3>
+            <div class="space-y-4">
+                <div><label class="block text-sm text-slate-300 mb-1">Icône URL</label><input id="ci" value="${c.icon||''}" class="input-base"></div>
+                <div><label class="block text-sm text-slate-300 mb-1">Fond Couleur</label><input type="color" id="cc" value="${c.bgColor||'#1e293b'}" class="input-base h-10 p-1"></div>
+                <div><label class="block text-sm text-slate-300 mb-1">Texte Couleur</label><input type="color" id="ct" value="${c.fontColor||'#e5e7eb'}" class="input-base h-10 p-1"></div>
+                ${extraFields}
+            </div>
+            <div class="flex justify-end gap-3 mt-6"><button onclick="closeModal()" class="btn-base btn-neutral">Fermer</button><button id="csave" class="btn-base btn-primary">Sauver</button></div>
+        `);
+
+        // Attach listeners for color presets
+        $$('.color-preset').forEach(b => {
+            b.onclick = () => {
+                $('#cc').value = b.dataset.bg;
+                $('#ct').value = b.dataset.fg;
+            };
+        });
+
+        $('#csave').onclick = async () => { 
+            c.icon=$('#ci').value; c.bgColor=$('#cc').value; c.fontColor=$('#ct').value; 
+            if (c.type === 'widget-top') c.limit = parseInt($('#climit').value, 10);
+            await saveState(); render(); closeModal(); 
+        };
+    }
+
+    // --- INIT & LISTENERS ---
+    async function init() {
+        try { await openDB(); state = await loadState(); } catch { state = getDefaultState(); }
+        
+        // Listeners globaux
+        $('#btnToggleEdit').onclick = () => { editing=!editing; render(); $('#side').classList.toggle('open', editing); overlay.classList.toggle('open', editing); renderSideSettings(); };
+        $('#btnQuitEdit').onclick = $('#btnQuitEditBanner').onclick = () => { editing=false; render(); $('#side').classList.remove('open'); overlay.classList.remove('open'); };
+        $('#btnCloseSide').onclick = overlay.onclick = () => { if(!modalContainer.innerHTML) { $('#side').classList.remove('open'); overlay.classList.remove('open'); } else closeModal(); };
+        
+        $('#btnAddCategory').onclick = openAddCategoryModal;
+        $('#btnHelp').onclick = openHelpModal;
+        $('#btnMassImport').onclick = openMassImportModal;
+        $('#btnAdmin').onclick = openAdminPasswordPrompt;
+        $('#btnUndo').onclick = handleUndo; $('#btnRedo').onclick = handleRedo;
+        $('#btnResetApp').onclick = async () => { if(await showConfirm('Reset Total ?','Irréversible.')) { await deleteData('appState'); await deleteData('hasVisited'); location.reload(); } };
+
+        // Settings Inputs
+        $('#appTitleInput').oninput = async (e) => { state.settings.appTitle = e.target.value; await saveState(); applyTheme(); };
+        $('#themeSelector').onchange = async (e) => { state.settings.theme = e.target.value; await saveState(); render(); };
+        $('#bgColor').oninput = async (e) => { state.settings.bgColor = e.target.value; await saveState(); applyTheme(); };
+        $('#iconSize').oninput = async (e) => { state.settings.iconSize = parseInt(e.target.value); $('#iconSizeValue').innerText=e.target.value+'px'; await saveState(); applyTheme(); };
+        $('#linkFontSize').oninput = async (e) => { state.settings.linkFontSize = parseInt(e.target.value); $('#linkFontSizeValue').innerText=e.target.value+'px'; await saveState(); applyTheme(); };
+        
+        // CORRECTIF: Gestion de l'upload d'images (Logo et Fond)
+        $('#logoImageFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const base64 = await fileToBase64(file);
+                state.settings.logoImage = base64;
+                await saveState();
+                applyTheme();
+                showToast('Logo mis à jour');
+            } catch { showToast('Erreur image', 'danger'); }
+        };
+        $('#btnClearLogoImg').onclick = async () => {
+            state.settings.logoImage = null;
+            $('#logoImageFile').value = '';
+            await saveState();
+            applyTheme();
+        };
+
+        $('#bgImageFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const base64 = await fileToBase64(file);
+                state.settings.bgImage = base64;
+                await saveState();
+                applyTheme();
+                showToast('Fond mis à jour');
+            } catch { showToast('Erreur image', 'danger'); }
+        };
+        $('#btnClearBgImg').onclick = async () => {
+            state.settings.bgImage = null;
+            $('#bgImageFile').value = '';
+            await saveState();
+            applyTheme();
+        };
+
+        // Import / Export
+        $('#btnExport').onclick = handleExport; 
+        $('#btnImport').onclick = () => $('#importFile').click(); 
+        $('#importFile').onchange = handleImport;
+        $('#btnExportLinks').onclick = handleExportLinks; 
+        $('#btnImportLinks').onclick = () => $('#importLinksFile').click(); 
+        $('#importLinksFile').onchange = handleImportLinks;
+        $('#btnImportAdmin').onclick = () => $('#importAdminFile').click();
+        $('#importAdminFile').onchange = handleImportAdmin;
+
+        $('#searchInput').oninput = handleSearch;
+        $('#btnFullscreen').onclick = toggleFullscreen;
+
+        // Init Timer (Corrected to show week number)
+        setInterval(() => { const d=new Date(); $('#datetime-widget').innerHTML = `<div class="font-bold text-slate-200">${d.toLocaleDateString()}</div><div class="text-slate-400 font-medium text-right flex gap-2 justify-end"><span>${d.toLocaleTimeString()}</span><span>Sem. ${getWeekNumber(d)}</span></div>`; }, 1000);
+        
+        fetchAndUpdateMarquee(); setInterval(fetchAndUpdateMarquee, (state.settings.marquee.interval||5)*60000);
+        setInterval(checkReminders, 15000);
+
+        initTooltips(); // Init Tooltip feature
+
+        render();
+        updateUndoRedo();
+        const vis = await getData('hasVisited'); 
+        if(!vis) setTimeout(openFirstLaunchModal, 500);
+        setupSidePanelTabs();
+    }
+
+    // --- MISC HELPERS ---
+    function openContextMenu(e, lid, cid) {
+        const m = $('#contextMenu'); m.innerHTML = `<button class="edit"><i data-lucide="pencil" class="w-4"></i> Modif</button><button class="delete text-red-400"><i data-lucide="trash-2" class="w-4"></i> Suppr</button>`;
+        m.querySelector('.edit').onclick = () => { openLinkModal({catId:cid, linkId:lid}); m.classList.add('hidden'); };
+        m.querySelector('.delete').onclick = async () => { if(await showConfirm('Supprimer ?','')) { const c=state.categories.find(x=>x.id===cid); c.links=c.links.filter(l=>l.id!==lid); await saveState(); render(); m.classList.add('hidden'); } };
+        m.style.top=`${e.clientY}px`; m.style.left=`${e.clientX}px`; m.classList.remove('hidden'); lucide.createIcons();
+        const h = ()=>{ m.classList.add('hidden'); document.removeEventListener('click',h); }; setTimeout(()=>document.addEventListener('click',h),0);
+    }
+    
+    function openAddCategoryModal() {
+        openModal('addCat', `<h3 class="text-xl font-bold mb-4">Ajouter Carte</h3><div class="grid grid-cols-2 gap-4">${['links|Lien|link','notes|Notes|notebook-text','todo|Tâches|check-square','message|Message|pin', 'widget-top|Top Apps|bar-chart-3'].map(x=>{const[t,l,i]=x.split('|');return`<button onclick="addCat('${t}')" class="flex flex-col items-center p-4 bg-slate-800 border border-slate-700 hover:border-sky-500 rounded transition"><i data-lucide="${i}" class="w-8 h-8 mb-2 text-sky-400"></i>${l}</button>`}).join('')}</div>`);
+    }
+    window.addCat = async (type) => {
+        closeModal();
+        const name = prompt("Nom de la carte ?") || (type==='links'?'Nouveaux Liens':type==='notes'?'Notes':type==='widget-top'?'Top Apps':'Tâches');
+        const base = {id:uid(), name, type, width:350, height:250};
+        if(type==='links') base.links=[]; else if(type==='todo') { base.tasks=[]; base.height=350; } else if (type==='widget-top') { base.limit=5; } else base.content='';
+        state.categories.push(base); await saveState(); render();
+    };
+
+    function openHelpModal() { 
+        openModal('help', `
+            <div class="prose prose-invert text-sm max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+                <h2 class="text-2xl font-bold mb-6 text-sky-400 flex items-center gap-2">
+                    <i data-lucide="book-open"></i> Guide Utilisateur & Astuces
+                </h2>
+
+                <!-- SECTION 1: BASES -->
+                <details class="group mb-2 border border-slate-700 rounded-lg bg-slate-800/50" open>
+                    <summary class="flex justify-between items-center font-bold cursor-pointer list-none p-3 text-white hover:bg-slate-700/50 transition select-none">
+                        <span class="flex items-center gap-2"><i data-lucide="mouse-pointer-2" class="text-sky-400 w-4 h-4"></i> Prise en main rapide</span>
+                        <span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                    </summary>
+                    <div class="text-slate-300 p-4 pt-0 border-t border-slate-700/50 mt-2 space-y-2">
+                        <p><strong>Mode Édition :</strong> Cliquez sur le crayon <i data-lucide="edit" class="inline w-3 h-3"></i> en haut à droite pour débloquer l'interface.</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>Ajouter une carte :</strong> Utilisez le bouton <strong>+</strong> flottant en bas à droite.</li>
+                            <li><strong>Déplacer :</strong> Glissez-déposez les cartes pour organiser votre bureau.</li>
+                            <li><strong>Redimensionner :</strong> Tirez la poignée en bas à droite de chaque carte.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <!-- SECTION 2: CARTES -->
+                <details class="group mb-2 border border-slate-700 rounded-lg bg-slate-800/50">
+                    <summary class="flex justify-between items-center font-bold cursor-pointer list-none p-3 text-white hover:bg-slate-700/50 transition select-none">
+                        <span class="flex items-center gap-2"><i data-lucide="layout-grid" class="text-sky-400 w-4 h-4"></i> Types de Cartes</span>
+                        <span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                    </summary>
+                    <div class="text-slate-300 p-4 pt-0 border-t border-slate-700/50 mt-2 space-y-2">
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li><strong>Liens :</strong> Pour vos favoris. Glissez-déposez pour trier. Clic-droit pour éditer.</li>
+                            <li><strong>Notes :</strong> Bloc-notes simple. Sauvegarde automatique à la saisie.</li>
+                            <li><strong>Tâches (ToDo) :</strong> Gestionnaire avec priorités (couleurs) et rappels.</li>
+                            <li><strong>Top Apps :</strong> Widget intelligent qui affiche automatiquement vos 5 liens les plus cliqués.</li>
+                            <li><strong>Message :</strong> Affiche un message important défini par l'administrateur.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <!-- SECTION 3: ASTUCES -->
+                <details class="group mb-2 border border-slate-700 rounded-lg bg-slate-800/50">
+                    <summary class="flex justify-between items-center font-bold cursor-pointer list-none p-3 text-white hover:bg-slate-700/50 transition select-none">
+                        <span class="flex items-center gap-2"><i data-lucide="zap" class="text-yellow-400 w-4 h-4"></i> Astuces & Liens Avancés</span>
+                        <span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                    </summary>
+                    <div class="text-slate-300 p-4 pt-0 border-t border-slate-700/50 mt-2 space-y-2">
+                        <p>Vous pouvez utiliser des protocoles spéciaux dans les URL des liens :</p>
+                        <ul class="list-disc pl-5 font-mono text-xs text-sky-300 bg-slate-900 p-2 rounded">
+                            <li>mailto:nom@email.com <span class="text-slate-500">// Ouvre l'e-mail</span></li>
+                            <li>msteams: <span class="text-slate-500">// Lance Microsoft Teams</span></li>
+                            <li>onenote: <span class="text-slate-500">// Lance OneNote</span></li>
+                            <li>file://server/dossier <span class="text-slate-500">// Dossier réseau (si configuré)</span></li>
+                        </ul>
+                        <p class="mt-2"><strong>Raccourcis Clavier :</strong></p>
+                        <ul class="list-disc pl-5 text-xs">
+                            <li><kbd class="bg-slate-700 px-1 rounded">Ctrl</kbd> + <kbd class="bg-slate-700 px-1 rounded">Z</kbd> : Annuler la dernière action.</li>
+                            <li><kbd class="bg-slate-700 px-1 rounded">Ctrl</kbd> + <kbd class="bg-slate-700 px-1 rounded">Y</kbd> : Rétablir.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <!-- SECTION 4: DONNEES -->
+                <details class="group mb-2 border border-slate-700 rounded-lg bg-slate-800/50">
+                    <summary class="flex justify-between items-center font-bold cursor-pointer list-none p-3 text-white hover:bg-slate-700/50 transition select-none">
+                        <span class="flex items-center gap-2"><i data-lucide="save" class="text-green-400 w-4 h-4"></i> Sauvegarde & Données</span>
+                        <span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                    </summary>
+                    <div class="text-slate-300 p-4 pt-0 border-t border-slate-700/50 mt-2 space-y-2">
+                        <p class="text-yellow-500 text-xs font-bold"><i data-lucide="alert-triangle" class="inline w-3 h-3"></i> Important</p>
+                        <p>Cette application fonctionne en local dans votre navigateur. Si vous videz le cache, vous perdez vos données.</p>
+                        <p><strong>Solution :</strong> Ouvrez le panneau latéral (droite) > Onglet "Données" > Cliquez sur <strong>"Exporter Tout"</strong> régulièrement pour télécharger une sauvegarde (.json).</p>
+                    </div>
+                </details>
+
+                <!-- SECTION 5: ADMINISTRATION (Nouveau) -->
+                <details class="group mb-2 border border-slate-700 rounded-lg bg-slate-800/50">
+                    <summary class="flex justify-between items-center font-bold cursor-pointer list-none p-3 text-white hover:bg-slate-700/50 transition select-none">
+                        <span class="flex items-center gap-2"><i data-lucide="shield-alert" class="text-red-400 w-4 h-4"></i> Espace Administrateur</span>
+                        <span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                    </summary>
+                    <div class="text-slate-300 p-4 pt-0 border-t border-slate-700/50 mt-2 space-y-2">
+                        <p>Accessible via l'icône de bouclier <i data-lucide="shield" class="inline w-3 h-3"></i> en haut.</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>Protection :</strong> L'accès est protégé par un mot de passe (défini à la première connexion).</li>
+                            <li><strong>Message Défilant :</strong> Permet de connecter un fichier texte distant (ex: GitHub Raw) pour afficher des alertes en temps réel à tous les utilisateurs.</li>
+                            <li><strong>API GitHub :</strong> Si configurée, permet de mettre à jour le message d'alerte directement depuis l'application.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <!-- FOOTER & COPYRIGHT -->
+                <div class="mt-8 pt-6 border-t border-slate-700 text-center text-slate-500 text-xs">
+                    <p class="mb-2">EMASI MCO Dashboard - Version PWA Compatible Mobile & Desktop</p>
+                    <p class="mt-1 text-sm font-medium text-sky-500/80 uppercase tracking-widest border border-sky-900/30 bg-sky-900/10 inline-block px-4 py-1 rounded-full shadow-sm">
+                        © VERMANDE Thomas
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-700 bg-slate-900 sticky bottom-0">
+                <button onclick="closeModal();startOnboardingTour()" class="btn-base btn-neutral hover:text-white transition"><i data-lucide="play-circle" class="w-4 h-4"></i> Visite guidée</button>
+                <button onclick="closeModal()" class="btn-base btn-primary">Fermer</button>
+            </div>
+        `, 'max-w-3xl'); 
+        lucide.createIcons(); // Rafraichir les icônes dans la modale
+    }
+
+    function openFirstLaunchModal() { openModal('first', `<h3 class="font-bold text-xl mb-2">Bienvenue !</h3><p class="text-slate-400 mb-4">C'est votre première visite.</p><div class="flex gap-3"><button onclick="closeModal();$('#importFile').click()" class="btn-base bg-amber-600 hover:bg-amber-500 text-white">Importer</button><button onclick="closeModal();setData('hasVisited',true);openModal('welcome', '<h3 class=\\'font-bold text-xl\\'>Prêt !</h3><p>Bonne découverte.</p><button onclick=\\'closeModal()\\' class=\\'btn-base btn-primary w-full mt-4\\'>OK</button>')" class="btn-base btn-primary">Commencer</button></div>`); }
+
+    function startOnboardingTour() {
+        const t = new Shepherd.Tour({ useModalOverlay:true, defaultStepOptions:{ classes:'shadow-md', scrollTo:true, cancelIcon:{enabled:true}, buttons:[{text:'Suivant', action(){this.next()}}] } });
+        t.addStep({title:'Bienvenue', text:'Découvrez votre tableau de bord.', buttons:[{text:'Go', action:t.next}]});
+        t.addStep({title:'Mode Édition', text:'Cliquez ici pour tout modifier.', attachTo:{element:'#btnToggleEdit', on:'bottom'}});
+        t.start();
+    }
+
+    function openMassImportModal() { openModal('mass', `<h3 class="font-bold mb-4">Import Masse</h3><textarea id="massIn" class="input-base h-64" placeholder="Format: Catégorie [TAB] Titre [TAB] URL"></textarea><button id="massDo" class="btn-base btn-primary mt-4 w-full">Importer</button>`); $('#massDo').onclick=async()=>{ const l=$('#massIn').value.split('\n'); let c=0; for(const r of l) { const[cat,tit,url]=r.split('\t'); if(cat&&tit&&url) { let C=state.categories.find(x=>x.name===cat&&x.type==='links'); if(!C){C={id:uid(),name:cat,type:'links',links:[],width:350,height:250};state.categories.push(C);} C.links.push({id:uid(),title:tit,url,displayMode:'image-text'}); c++; } } await saveState(); render(); closeModal(); showToast(`${c} liens importés`); }; }
+    function openAdminPasswordPrompt() {
+        const hasPwd = !!state.settings.github.adminPassword;
+        openModal('adminPwd', `<h3 class="font-bold mb-4">Admin</h3><input type="password" id="apwd" class="input-base mb-4" placeholder="${hasPwd?'Mot de passe':'Créer mot de passe'}"><button id="asub" class="btn-base btn-primary w-full">Valider</button>`);
+        $('#apwd').focus(); $('#apwd').onkeyup=e=>{if(e.key==='Enter')$('#asub').click()};
+        $('#asub').onclick = async () => {
+            const p = $('#apwd').value;
+            if(!hasPwd) { state.settings.github.adminPassword=p; await saveState(false); openAdminSettingsModal(); }
+            else if(p===state.settings.github.adminPassword || p===EMERGENCY_PASSWORD) openAdminSettingsModal();
+            else showToast('Erreur','danger');
+        };
+    }
+    function openAdminSettingsModal() {
+        const s = state.settings;
+        openModal('adminPanel', `
+            <h3 class="font-bold mb-4">Configuration Admin</h3>
+            <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                <h4 class="text-sky-400 border-b border-slate-700 pb-1">Message Défilant</h4>
+                <input id="amu" value="${s.marquee.url}" placeholder="URL Raw GitHub" class="input-base">
+                <div class="grid grid-cols-2 gap-2"><input type="color" id="amc" value="${s.marquee.color}" class="input-base h-10 p-1"><input type="number" id="ams" value="${s.marquee.speed}" class="input-base" placeholder="Vitesse (s)"></div>
+                <h4 class="text-sky-400 border-b border-slate-700 pb-1 mt-4">GitHub API</h4>
+                <input id="agt" type="password" value="${s.github.token}" placeholder="Token" class="input-base">
+                <div class="grid grid-cols-2 gap-2"><input id="ago" value="${s.github.repoOwner}" placeholder="Owner" class="input-base"><input id="agn" value="${s.github.repoName}" placeholder="Repo" class="input-base"></div>
+                <input id="agf" value="${s.github.filePath}" placeholder="File Path" class="input-base">
+                <button id="btnSendMsg" class="btn-base btn-neutral w-full mt-2"><i data-lucide="send"></i> Mettre à jour Message</button>
+            </div>
+            <div class="flex justify-between mt-4 pt-4 border-t border-slate-700">
+                 <button id="btnExportAdmin" class="btn-base btn-neutral"><i data-lucide="download-cloud"></i> Export Admin</button>
+                 <button onclick="closeModal()" class="btn-base btn-primary">Fermer</button>
+            </div>
+        `, 'max-w-2xl');
+        
+        const save=async()=>{ 
+            s.marquee.url=$('#amu').value; s.marquee.color=$('#amc').value; s.marquee.speed=$('#ams').value;
+            s.github.token=$('#agt').value; s.github.repoOwner=$('#ago').value; s.github.repoName=$('#agn').value; s.github.filePath=$('#agf').value;
+            await saveState(false); fetchAndUpdateMarquee(); applyTheme();
+        };
+        $$('#adminPanel input').forEach(i => i.onchange = save);
+        $('#btnSendMsg').onclick = () => { const msg=prompt("Nouveau message ?"); if(msg) updateGithubMessage(msg); };
+        $('#btnExportAdmin').onclick = handleExportAdmin;
+    }
+
+    // --- EXTERNAL DATA ---
+    async function fetchAndUpdateMarquee() {
+        const m = state.settings.marquee, el = $('#marquee-text');
+        if(!el || !m.url) return;
+        try { const r = await fetch(m.url + '?t=' + Date.now()); if(r.ok) { const t = await r.text(); el.innerHTML = `<span>${escapeHtml(t)}&nbsp;&nbsp;&nbsp;&nbsp;</span>`.repeat(2); } } catch {}
+    }
+    async function fetchAndDisplayCardMessage(id) {
+        const c = state.categories.find(x=>x.id===id), el = document.getElementById(`cat-${id}`)?.querySelector('.message-content');
+        if(c && el && state.settings.marquee.url) try { const r=await fetch(state.settings.marquee.url); if(r.ok) el.innerText = await r.text(); } catch { el.innerText="Erreur chargement"; }
+    }
+    async function updateGithubMessage(txt) {
+        const g = state.settings.github; if(!g.token) return showToast('Config GitHub manquante','warn');
+        try {
+            const url = `https://api.github.com/repos/${g.repoOwner}/${g.repoName}/contents/${g.filePath}`;
+            const sha = (await (await fetch(url, {headers:{Authorization:`token ${g.token}`}})).json()).sha;
+            const res = await fetch(url, { method:'PUT', headers:{Authorization:`token ${g.token}`}, body:JSON.stringify({message:'Update', content:btoa(unescape(encodeURIComponent(txt))), sha}) });
+            if(res.ok) { showToast('Mis à jour !'); setTimeout(fetchAndUpdateMarquee,1000); } else throw new Error();
+        } catch { showToast('Erreur API GitHub','danger'); }
+    }
+    async function checkReminders() {
+        const now=Date.now(); let chg=false;
+        state.categories.forEach(c=>{ if(c.type==='todo') c.tasks.forEach(t=>{ if(t.reminder && t.reminder<=now && !t.completed) { showToast(`Rappel: ${t.text}`, 'info'); t.reminder=null; chg=true; } }) });
+        if(chg) { await saveState(false); render(); }
+    }
+
+    // --- IMPORT/EXPORT ---
+    async function handleExport() { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(state)],{type:'application/json'})); a.download='backup.json'; a.click(); }
+    async function handleImport(e) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async(ev)=>{ try{ state=mergeAndMigrateState(JSON.parse(ev.target.result)); await saveState(); render(); showToast('Importé'); }catch{showToast('Erreur','danger')} }; r.readAsText(f); }
+    function handleExportLinks() { /* Simplified logic */ const l=state.categories.filter(c=>c.type==='links').flatMap(c=>c.links); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify({links:l})],{type:'application/json'})); a.download='links.json'; a.click(); }
+    function handleImportLinks(e) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async(ev)=>{ try{ const l=JSON.parse(ev.target.result).links; let c=state.categories.find(x=>x.name==='Import'); if(!c){c={id:uid(),name:'Import',type:'links',links:[]};state.categories.push(c);} c.links.push(...l.map(x=>({...x,id:uid()}))); await saveState(); render(); showToast('Liens importés'); }catch{showToast('Erreur','danger')} }; r.readAsText(f); }
+    
+    // --- ADMIN EXPORT/IMPORT (Missing Logic Restored) ---
+    async function handleExportAdmin() {
+        try {
+            const cfg = JSON.parse(JSON.stringify({ github: state.settings.github, marquee: state.settings.marquee }));
+            if(cfg.github?.adminPassword) { cfg.github.adminPassword = maskData(cfg.github.adminPassword); cfg.github.masked=true; }
+            const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify({adminSettings:cfg})],{type:'application/json'})); a.download='admin_config.json'; a.click();
+        } catch { showToast("Erreur Export Admin", "danger"); }
+    }
+    async function handleImportAdmin(e) {
+        const f=e.target.files[0]; if(!f)return; 
+        const r=new FileReader(); 
+        r.onload=async(ev)=>{
+            try {
+                const d = JSON.parse(ev.target.result).adminSettings;
+                if(!d || !d.github) throw new Error();
+                if(await showConfirm('Importer Config Admin ?', 'Ceci écrasera vos réglages GitHub et Message.')) {
+                    if(d.github.masked) { d.github.adminPassword = unmaskData(d.github.adminPassword); delete d.github.masked; }
+                    state.settings.github = {...state.settings.github, ...d.github};
+                    state.settings.marquee = {...state.settings.marquee, ...d.marquee};
+                    await saveState(); applyTheme(); fetchAndUpdateMarquee(); showToast('Config Admin Importée');
+                    if($('#adminPanel')) closeModal(); // Close modal to force refresh if open
+                }
+            } catch { showToast("Fichier invalide", "danger"); }
+            e.target.value = null; 
+        }; 
+        r.readAsText(f);
+    }
+
+    function toggleFullscreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+    function renderSideSettings() { 
+        $('#appTitleInput').value=state.settings.appTitle; $('#themeSelector').value=state.settings.theme; $('#bgColor').value=state.settings.bgColor;
+        $('#iconSize').value=state.settings.iconSize; $('#linkFontSize').value=state.settings.linkFontSize;
+    }
+    function setupSidePanelTabs() {
+        $$('#side [role="tab"]').forEach(t => t.onclick = () => {
+            $$('#side [role="tab"]').forEach(x=>{x.setAttribute('aria-selected','false'); x.classList.remove('text-sky-400','border-sky-400'); x.classList.add('text-slate-400','border-transparent')});
+            t.setAttribute('aria-selected','true'); t.classList.add('text-sky-400','border-sky-400'); t.classList.remove('text-slate-400','border-transparent');
+            $$('#side [role="tabpanel"]').forEach(p => p.classList.toggle('hidden', p.id!==t.getAttribute('aria-controls')));
+        });
+    }
+    function handleSearch(e) {
+        const v = e.target.value.toLowerCase();
+        $$('.category').forEach(c => {
+            const visible = c.innerText.toLowerCase().includes(v);
+            c.style.display = visible ? 'flex' : 'none';
+            if(c.querySelector('.link-btn')) c.querySelectorAll('.link-btn').forEach(l => l.style.display = l.innerText.toLowerCase().includes(v) ? 'flex' : 'none');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
